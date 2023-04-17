@@ -3,30 +3,34 @@ import cv2
 from math import ceil
 
 
-def overlap(images, offsets):
+def overlap(images, matching_tree):
     top, bot, left, right = 0, 0, 0, 0
-    for (x, y) in offsets:
-        if x > 0:
-            right += x
-        else:
-            left -= x
-        if y > 0:
-            bot += y
-        else:
-            top -= y
+
+    Q = [matching_tree]
+    while Q:
+        curr = Q.pop(0)
+        for child, (x, y) in curr.children.items():
+            if x > 0:
+                right += x
+            else:
+                left -= x
+            if y > 0:
+                bot += y
+            else:
+                top -= y
+            Q.append(child)
 
     top, bot, left, right = ceil(top), ceil(bot), ceil(left), ceil(right)
     padded = [np.pad(img, ((top, bot), (left, right), (0, 0))) for img in images]
 
-    acc_x, acc_y = 0, 0
-    last = padded[0]
-    for i in range(1, len(padded)):
-        acc_x += offsets[i-1][0]
-        acc_y += offsets[i-1][1]
-        curr = shift(padded[i], (acc_x, acc_y))
-        curr[curr == 0] = last[curr == 0]
-        last = curr
-    return last
+    def _dfs(node, sum_x=0, sum_y=0):
+        curr = shift(padded[node.index], (sum_x, sum_y))
+        for child, (x, y) in node.children.items():
+            shift_child = _dfs(child, sum_x+x, sum_y+y)
+            curr[curr == 0] = shift_child[curr == 0]
+        return curr
+
+    return _dfs(matching_tree)
 
 
 def shift(img, offset):

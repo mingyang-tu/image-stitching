@@ -1,13 +1,6 @@
 import numpy as np
 
 
-def image_match(pairs):
-    shifts = []
-    for pair in pairs:
-        shifts.append(ransac(pair))
-    return shifts
-
-
 def ransac(pair, k=50, threshold=5):
     max_inlier = 0
     best_shift = (0, 0)
