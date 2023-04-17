@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import time
 from lib import feature_match, display_matching, image_match, overlap
 
 
@@ -35,11 +34,7 @@ if __name__ == "__main__":
         kps.append([i.pt for i in kp])
         descs.append(des)
 
-    start = time.time()
     pairs = feature_match(kps, descs)
-    end = time.time()
-
-    print(f"Ellapsed time: {end-start:.4f} s")
 
     offsets = image_match(pairs)
     result = overlap(images, offsets)
