@@ -4,7 +4,7 @@ from BBF import KDTree
 import time
 
 
-def _feature_match(kp1, des1, kp2, des2, ratio=0.7):
+def _feature_match(kp1, des1, kp2, des2, ratio=0.5):
     pair = []
     tree = KDTree()
     tree.build_tree(des1)
@@ -15,50 +15,84 @@ def _feature_match(kp1, des1, kp2, des2, ratio=0.7):
     return pair
 
 
+def feature_match(keypoints, descriptions):
+    N = len(keypoints)
+    matched = []
+    for i in range(N-1):
+        kp1, des1 = keypoints[i], descriptions[i]
+        kp2, des2 = keypoints[i+1], descriptions[i+1]
+        matched.append(_feature_match(kp1, des1, kp2, des2))
+    return matched
+
+
 if __name__ == "__main__":
+    root = "../../../test/"
+    names = [
+        "100-0038_img.jpg",
+        "100-0039_img.jpg",
+        "100-0040_img.jpg"
+    ]
 
-    image1 = cv2.imread("../../../test/100-0024_img.jpg")
-    image2 = cv2.imread("../../../test/100-0025_img.jpg")
+    images = []
+    for i in names:
+        images.append(cv2.imread(root + i))
 
-    match = np.concatenate([image1, image2], axis=1)
+    img_match = np.concatenate(images, axis=1)
 
-    _, SHIFT, _ = image1.shape
+    SHIFT1 = images[0].shape[1]
+    SHIFT2 = SHIFT1 + images[1].shape[1]
 
     sift = cv2.SIFT_create()
 
-    kp1, des1 = sift.detectAndCompute(image1, None)
-    kp2, des2 = sift.detectAndCompute(image2, None)
-
-    pt1 = [i.pt for i in kp1]
-    pt2 = [i.pt for i in kp2]
+    kps = []
+    descs = []
+    for img in images:
+        kp, des = sift.detectAndCompute(img, None)
+        kps.append([i.pt for i in kp])
+        descs.append(des)
 
     start = time.time()
-    pair = _feature_match(pt1, des1, pt2, des2)
+    pair = feature_match(kps, descs)
     end = time.time()
 
     print(f"Ellapsed time: {end-start:.4f} s")
-    print(f"Valid pairs: {len(pair)}")
 
-    for (x1, y1), (x2, y2) in pair:
+    for (x1, y1), (x2, y2) in pair[0]:
         cv2.line(
-            match,
+            img_match,
             (round(x1), round(y1)),
-            (round(x2)+SHIFT, round(y2)),
+            (round(x2)+SHIFT1, round(y2)),
             (255, 0, 0), 1
         )
-    for (x1, y1), (x2, y2) in pair:
         cv2.circle(
-            match,
+            img_match,
             center=(round(x1), round(y1)),
             radius=3, color=(0, 0, 255), thickness=-1
         )
         cv2.circle(
-            match,
-            center=(round(x2)+SHIFT, round(y2)),
+            img_match,
+            center=(round(x2)+SHIFT1, round(y2)),
             radius=3, color=(0, 0, 255), thickness=-1
         )
+    for (x1, y1), (x2, y2) in pair[1]:
+        cv2.line(
+            img_match,
+            (round(x1)+SHIFT1, round(y1)),
+            (round(x2)+SHIFT2, round(y2)),
+            (255, 0, 0), 1
+        )
+        cv2.circle(
+            img_match,
+            center=(round(x1)+SHIFT1, round(y1)),
+            radius=3, color=(0, 0, 255), thickness=-1
+        )
+        cv2.circle(
+            img_match,
+            center=(round(x2)+SHIFT2, round(y2)),
+            radius=3, color=(0, 0, 255), thickness=-1
+        )  
 
-    cv2.imshow("match", match)
+    cv2.imshow("match", img_match)
 
     cv2.waitKey()
     cv2.destroyAllWindows()
