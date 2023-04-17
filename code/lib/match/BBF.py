@@ -1,6 +1,6 @@
 import numpy as np
 import heapq
-from util import MaxHeap
+from .util import MaxHeap
 
 
 class TreeNode:
