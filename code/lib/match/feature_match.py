@@ -39,8 +39,9 @@ if __name__ == "__main__":
 
     img_match = np.concatenate(images, axis=1)
 
-    SHIFT1 = images[0].shape[1]
-    SHIFT2 = SHIFT1 + images[1].shape[1]
+    SHIFTS = [0]
+    for i in range(len(names)-1):
+        SHIFTS.append(SHIFTS[-1] + images[i].shape[1])
 
     sift = cv2.SIFT_create()
 
@@ -57,41 +58,25 @@ if __name__ == "__main__":
 
     print(f"Ellapsed time: {end-start:.4f} s")
 
-    for (x1, y1), (x2, y2) in pair[0]:
-        cv2.line(
-            img_match,
-            (round(x1), round(y1)),
-            (round(x2)+SHIFT1, round(y2)),
-            (255, 0, 0), 1
-        )
-        cv2.circle(
-            img_match,
-            center=(round(x1), round(y1)),
-            radius=3, color=(0, 0, 255), thickness=-1
-        )
-        cv2.circle(
-            img_match,
-            center=(round(x2)+SHIFT1, round(y2)),
-            radius=3, color=(0, 0, 255), thickness=-1
-        )
-    for (x1, y1), (x2, y2) in pair[1]:
-        cv2.line(
-            img_match,
-            (round(x1)+SHIFT1, round(y1)),
-            (round(x2)+SHIFT2, round(y2)),
-            (255, 0, 0), 1
-        )
-        cv2.circle(
-            img_match,
-            center=(round(x1)+SHIFT1, round(y1)),
-            radius=3, color=(0, 0, 255), thickness=-1
-        )
-        cv2.circle(
-            img_match,
-            center=(round(x2)+SHIFT2, round(y2)),
-            radius=3, color=(0, 0, 255), thickness=-1
-        )  
-
+    for i in range(len(names) - 1):
+        print(f"Valid pairs: {len(pair[i])}")
+        for (x1, y1), (x2, y2) in pair[i]:
+            cv2.line(
+                img_match,
+                (round(x1)+SHIFTS[i], round(y1)),
+                (round(x2)+SHIFTS[i+1], round(y2)),
+                (255, 0, 0), 1
+            )
+            cv2.circle(
+                img_match,
+                center=(round(x1)+SHIFTS[i], round(y1)),
+                radius=3, color=(0, 0, 255), thickness=-1
+            )
+            cv2.circle(
+                img_match,
+                center=(round(x2)+SHIFTS[i+1], round(y2)),
+                radius=3, color=(0, 0, 255), thickness=-1
+            )
     cv2.imshow("match", img_match)
 
     cv2.waitKey()
