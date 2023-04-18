@@ -9,14 +9,14 @@ class ImageNode:
         self.children = dict()
 
     def __str__(self):
-        output = str(self.index) + "(root)"
+        output = str(self.index) + f"({self.value})" + "(root)"
         queue = [(child, offset) for child, offset in self.children.items()]
         while queue:
             output += "\n"
             l = len(queue)
             for i in range(l):
                 curr, offset = queue.pop(0)
-                output += f"->{str(curr.index)}({offset[0]:.2f},{offset[1]:.2f})"
+                output += f"->{str(curr.index)}({curr.value})({offset[0]:.2f},{offset[1]:.2f})"
                 for child, offset in curr.children.items():
                     queue.append((child, offset))
         return output
@@ -52,7 +52,7 @@ def swap_pair(pair):
     return new_pair
 
 
-def prim_mst(graph, pairs, threshold=100):
+def prim_mst(graph, pairs, threshold=10):
     N = len(graph)
     vertexs = [ImageNode(i) for i in range(N)]
 
@@ -61,7 +61,7 @@ def prim_mst(graph, pairs, threshold=100):
     while vertexs:
         curr = extract_max(vertexs)
         if curr.parent:
-            if len(pairs[curr.parent.index][curr.index]) > 0:
+            if curr.parent.index < curr.index:
                 curr.parent.children[curr] = ransac(pairs[curr.parent.index][curr.index])
             else:
                 curr.parent.children[curr] = ransac(swap_pair(pairs[curr.index][curr.parent.index]))
