@@ -1,8 +1,7 @@
 from .BBF import KDTree
-from .MST import prim_mst
 
 
-def matching(keypoints, descriptions):
+def feature_match(keypoints, descriptions):
     N = len(keypoints)
     pairs = [[[] for j in range(N)] for i in range(N)]
     num_pair = [[0 for j in range(N)] for i in range(N)]
@@ -18,12 +17,7 @@ def matching(keypoints, descriptions):
             pairs[i][j] = _feature_match(kp1, kp2, tree1, des2)
             num_pair[i][j] = num_pair[j][i] = len(pairs[i][j])
 
-    matching_tree = prim_mst(num_pair, pairs)
-
-    print("\nRelationship between images:")
-    print(matching_tree)
-
-    return matching_tree
+    return pairs, num_pair
 
 
 def _feature_match(kp1, kp2, tree1, des2, ratio=0.5):
