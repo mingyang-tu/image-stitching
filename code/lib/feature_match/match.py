@@ -4,7 +4,6 @@ from .BBF import KDTree
 def feature_match(keypoints, descriptions):
     N = len(keypoints)
     pairs = [[[] for j in range(N)] for i in range(N)]
-    num_pair = [[0 for j in range(N)] for i in range(N)]
 
     for i in range(N):
         kp1, des1 = keypoints[i], descriptions[i]
@@ -15,9 +14,8 @@ def feature_match(keypoints, descriptions):
             print(f"Matching Image {i} -> {j}")
             kp2, des2 = keypoints[j], descriptions[j]
             pairs[i][j] = _feature_match(kp1, kp2, tree1, des2)
-            num_pair[i][j] = num_pair[j][i] = len(pairs[i][j])
 
-    return pairs, num_pair
+    return pairs
 
 
 def _feature_match(kp1, kp2, tree1, des2, ratio=0.5):

@@ -29,9 +29,9 @@ if __name__ == "__main__":
         kps.append([i.pt for i in kp])
         descs.append(des)
 
-    pairs, num_pair = feature_match(kps, descs)
+    pairs = feature_match(kps, descs)
 
-    matching_tree = image_match(pairs, num_pair)
+    matching_tree = image_match(pairs)
 
     result = overlap(images, matching_tree)
 

@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def image_match(pairs, num_pair):
-    matching_tree = prim_mst(num_pair, pairs)
+def image_match(pairs):
+    matching_tree = prim_mst(pairs)
 
     print("\nRelationship between images:")
     print(matching_tree)
@@ -10,8 +10,17 @@ def image_match(pairs, num_pair):
     return matching_tree
 
 
-def prim_mst(graph, pairs, threshold=10):
-    N = len(graph)
+def prim_mst(pairs, threshold=10):
+    N = len(pairs)
+
+    graph = [[0 for j in range(N)] for i in range(N)]
+    for i in range(N):
+        for j in range(N):
+            if i > j:
+                graph[i][j] = len(pairs[j][i])
+            else:
+                graph[i][j] = len(pairs[i][j])
+
     vertexs = [ImageNode(i) for i in range(N)]
 
     root = vertexs[0]
