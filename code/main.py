@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from lib import feature_match, image_match, overlap
+from lib import feature_match, image_match, linear_blend
 
 
 if __name__ == "__main__":
@@ -33,7 +33,10 @@ if __name__ == "__main__":
 
     matching_tree = image_match(pairs)
 
-    result = overlap(images, matching_tree)
+    result = linear_blend(images, matching_tree)
+
+    # cv2.imwrite("../result.jpg", result)
 
     cv2.imshow("Result", result)
     cv2.waitKey()
+    cv2.destroyAllWindows()

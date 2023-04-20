@@ -56,7 +56,7 @@ class ImageNode:
             l = len(queue)
             for i in range(l):
                 curr, offset = queue.pop(0)
-                output += f"->{str(curr.index)}({curr.value})({offset[0]:.2f},{offset[1]:.2f})"
+                output += f"->{str(curr.index)}({curr.value})({offset[0]},{offset[1]})"
                 for child, offset in curr.children.items():
                     queue.append((child, offset))
         return output
@@ -89,7 +89,7 @@ def ransac(pair, k=50, threshold=5):
                 dy_sum += _dy
         if inlier > max_inlier:
             max_inlier = inlier
-            best_shift = (dx_sum / inlier, dy_sum / inlier)
+            best_shift = (round(dx_sum / inlier), round(dy_sum / inlier))
     print(f"Ratio of inliers: {max_inlier}/{len(pair)} = {max_inlier / len(pair) * 100:.2f}%")
     return best_shift
 
