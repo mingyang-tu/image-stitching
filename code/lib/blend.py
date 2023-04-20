@@ -38,16 +38,11 @@ def get_linear_weight(img):
 
     w_x = np.concatenate([np.arange(0, c_x-top+1), np.arange(bot-c_x-1, -1, -1)])
     w_x = w_x / np.max(w_x)
-    weight_x = np.zeros(binary.shape, dtype=np.float64)
-    weight_x[top:bot+1, left:right+1] = np.tile(w_x, (int(right-left+1), 1)).T
-
     w_y = np.concatenate([np.arange(0, c_y-left+1), np.arange(right-c_y-1, -1, -1)])
     w_y = w_y / np.max(w_y)
-    weight_y = np.zeros(binary.shape, dtype=np.float64)
-    weight_y[top:bot+1, left:right+1] = np.tile(w_y, (int(bot-top+1), 1))
 
-    weight = weight_x * weight_y
-    weight /= np.max(weight)
+    weight = np.zeros(binary.shape, dtype=np.float64)
+    weight[top:bot+1, left:right+1] = np.dot(w_x.reshape(-1, 1), w_y.reshape(1, -1))
 
     return weight
 
