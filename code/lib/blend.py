@@ -28,22 +28,17 @@ def linear_blend(images, matching_tree):
 def get_linear_weight(img):
     binary = np.array(np.max(img, axis=2) > 0, dtype=np.float64)
 
-    top, bot, left, right = find_corner(binary)
-    c_x, c_y = (top + bot) // 2, (left + right) // 2
+    ROW, COL = binary.shape
+    c_x, c_y = (ROW - 1) // 2, (COL - 1) // 2
 
-    w_x = np.concatenate([np.arange(0, c_x-top+1), np.arange(bot-c_x-1, -1, -1)])
+    w_x = np.concatenate([np.arange(0, c_x+1), np.arange(ROW-c_x-2, -1, -1)])
     w_x = w_x / np.max(w_x)
-    w_y = np.concatenate([np.arange(0, c_y-left+1), np.arange(right-c_y-1, -1, -1)])
+    w_y = np.concatenate([np.arange(0, c_y+1), np.arange(COL-c_y-2, -1, -1)])
     w_y = w_y / np.max(w_y)
 
     w_xy = np.dot(w_x.reshape(-1, 1), w_y.reshape(1, -1))
 
     return w_xy
-
-
-def find_corner(img):
-    x_range, y_range = np.nonzero(img)
-    return np.min(x_range), np.max(x_range), np.min(y_range), np.max(y_range)
 
 
 def maximum_offests(matching_tree):
