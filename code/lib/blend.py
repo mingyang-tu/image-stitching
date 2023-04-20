@@ -5,8 +5,9 @@ def linear_blend(images, matching_tree):
     ROW, COL, _ = images[matching_tree.index].shape
     top, bot, left, right = maximum_offests(matching_tree)
 
-    result = np.zeros((ROW + top + bot, COL + left + right, 3), dtype=np.float64)
-    weights = np.zeros((ROW + top + bot, COL + left + right), dtype=np.float64)
+    ROW_r, COL_r = ROW + top + bot, COL + left + right
+    result = np.zeros((ROW_r, COL_r, 3), dtype=np.float64)
+    weights = np.zeros((ROW_r, COL_r), dtype=np.float64)
 
     queue = [(matching_tree, (top, left))]
     while queue:
@@ -26,9 +27,7 @@ def linear_blend(images, matching_tree):
 
 
 def get_linear_weight(img):
-    binary = np.array(np.max(img, axis=2) > 0, dtype=np.float64)
-
-    ROW, COL = binary.shape
+    ROW, COL, _ = img.shape
     c_x, c_y = (ROW - 1) // 2, (COL - 1) // 2
 
     w_x = np.concatenate([np.arange(0, c_x+1), np.arange(ROW-c_x-2, -1, -1)])
@@ -53,4 +52,3 @@ def maximum_offests(matching_tree):
     _dfs(matching_tree, 0, 0)
 
     return -offsets[0], offsets[1], -offsets[2], offsets[3]
-
