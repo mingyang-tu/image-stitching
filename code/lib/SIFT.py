@@ -128,6 +128,7 @@ class SIFT:
                                     keypoints.append(keypoint)
 
                                     print(f"Find {len(keypoints)} keypoints({count})...", end="\r")
+        
         return keypoints
 
     def accurate_keypoint_localization(self, DoGs, y, x, s, h, w, octave):
@@ -135,8 +136,9 @@ class SIFT:
         converge = False
         cube, gradient, hessian = None, None, None
         for _ in range(5):
-            cat_img = np.stack([DoGs[s-1], DoGs[s], DoGs[s+1]], axis=2)
-            cube = cat_img[y-1:y+2, x-1:x+2, :] / 255
+            cube = np.stack([DoGs[s-1][y-1:y+2, x-1:x+2], 
+                                DoGs[s][y-1:y+2, x-1:x+2], 
+                                DoGs[s+1][y-1:y+2, x-1:x+2]], axis=2) / 255
             # print(cube)
             gradient = computeGradient(cube)
             hessian = computeHessian(cube)
