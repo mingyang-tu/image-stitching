@@ -5,7 +5,6 @@ import cv2 as cv
 import time
 import copy
 import math
-from multiprocessing import Pool
 
 
 def isExtremum(cube):
@@ -48,7 +47,7 @@ class SIFT:
         self.num_intervals = num_intervals
         self.contrast_threshold = contrast_threshold
         self.edge_threshold = (eigenvalue_ratio + 1)**2 / eigenvalue_ratio
-        self.threshold = int(255 * contrast_threshold / num_intervals / 2)
+        self.threshold = int(127 * contrast_threshold / num_intervals )
         self.border=border
 
     def fit(self , img):
@@ -123,9 +122,9 @@ class SIFT:
                                 if result is not None:
                                     count += 1
                                     keypoint, local_s = result
-                                    # keypoints_with_orientations = self.computeKeypointsWithOrientations(keypoint, octave, OctaveGaussians[octave][local_s])
-                                    # for keypoint_with_orientation in keypoints_with_orientations:
-                                    #     keypoints.append(keypoint_with_orientation)
+                                    keypoints_with_orientations = self.computeKeypointsWithOrientations(keypoint, octave, OctaveGaussians[octave][local_s])
+                                    for keypoint_with_orientation in keypoints_with_orientations:
+                                        keypoints.append(keypoint_with_orientation)
                                     keypoints.append(keypoint)
 
                                     print(f"Find {len(keypoints)} keypoints({count})...", end="\r")
@@ -226,7 +225,7 @@ class SIFT:
 
 # using example
 img = cv.imread("/tmp2/b07902058/DVE_hw2/memorial0064.png")
-
+print(img.shape)
 sift = SIFT()
 keypoints = sift.fit(img)
 
