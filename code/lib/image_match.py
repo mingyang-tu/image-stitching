@@ -1,5 +1,3 @@
-import numpy as np
-
 
 def image_match(lengths, offsets):
     matching_tree = prim_mst(lengths, offsets)
@@ -72,4 +70,3 @@ def find_vertex(index, array):
         if index == item.index:
             return item
     return None
-
