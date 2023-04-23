@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def image_match(pairs):
-    matching_tree = prim_mst(pairs)
+def image_match(lengths, offsets):
+    matching_tree = prim_mst(lengths, offsets)
 
     print("\nRelationship between images:")
     print(matching_tree)
@@ -10,16 +10,8 @@ def image_match(pairs):
     return matching_tree
 
 
-def prim_mst(pairs, threshold=10):
-    N = len(pairs)
-
-    graph = [[0 for j in range(N)] for i in range(N)]
-    for i in range(N):
-        for j in range(N):
-            if i > j:
-                graph[i][j] = len(pairs[j][i])
-            else:
-                graph[i][j] = len(pairs[i][j])
+def prim_mst(lengths, offsets):
+    N = len(lengths)
 
     vertexs = [ImageNode(i) for i in range(N)]
 
@@ -28,15 +20,12 @@ def prim_mst(pairs, threshold=10):
     while vertexs:
         curr = extract_max(vertexs)
         if curr.parent:
-            if curr.parent.index < curr.index:
-                curr.parent.children[curr] = ransac(pairs[curr.parent.index][curr.index])
-            else:
-                curr.parent.children[curr] = ransac(swap_pair(pairs[curr.index][curr.parent.index]))
+            curr.parent.children[curr] = offsets[curr.parent.index][curr.index]
         for i in range(N):
-            if graph[curr.index][i] >= threshold:
+            if lengths[curr.index][i] > 0:
                 vert = find_vertex(i, vertexs)
-                if vert and graph[curr.index][i] > vert.value:
-                    vert.value = graph[curr.index][i]
+                if vert and lengths[curr.index][i] > vert.value:
+                    vert.value = lengths[curr.index][i]
                     vert.parent = curr
     return root
 
@@ -71,29 +60,6 @@ class ImageNode:
         return self.value < other.value
 
 
-def ransac(pair, k=50, threshold=5):
-    max_inlier = 0
-    best_shift = (0, 0)
-    for _ in range(k):
-        select = np.random.randint(0, len(pair))
-        (x1, y1), (x2, y2) = pair[select]
-        dx, dy = x1 - x2, y1 - y2
-
-        inlier = 0
-        dx_sum, dy_sum = 0, 0
-        for (x1, y1), (x2, y2) in pair:
-            _dx, _dy = x1 - x2, y1 - y2
-            if ((_dx - dx) ** 2 + (_dy - dy) ** 2) ** (1/2) <= threshold:
-                inlier += 1
-                dx_sum += _dx
-                dy_sum += _dy
-        if inlier > max_inlier:
-            max_inlier = inlier
-            best_shift = (round(dx_sum / inlier), round(dy_sum / inlier))
-    print(f"Ratio of inliers: {max_inlier}/{len(pair)} = {max_inlier / len(pair) * 100:.2f}%")
-    return best_shift
-
-
 def extract_max(array):
     for i in range(1, len(array)):
         if array[i] > array[0]:
@@ -107,9 +73,3 @@ def find_vertex(index, array):
             return item
     return None
 
-
-def swap_pair(pair):
-    new_pair = []
-    for (s, e) in pair:
-        new_pair.append((e, s))
-    return new_pair

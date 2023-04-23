@@ -1,12 +1,12 @@
 import numpy as np
 import cv2
-from lib import feature_match, image_match, linear_blend
+from lib import feature_match, image_match, linear_blend, e2e_alignment
 
 
 if __name__ == "__main__":
-    root = "../dataset/ntulib/"
+    root = "../dataset/parrington/"
     names = [
-        f"img{i}.JPG" for i in range(1, 9)
+        f"prtn{i:02d}.jpg" for i in range(18)
     ]
 
     images = []
@@ -14,10 +14,6 @@ if __name__ == "__main__":
         images.append(cv2.imread(root + i))
 
     img_match = np.concatenate(images, axis=1)
-
-    shifts = [0]
-    for i in range(len(names)-1):
-        shifts.append(shifts[-1] + images[i].shape[1])
 
     sift = cv2.SIFT_create()
 
@@ -29,11 +25,13 @@ if __name__ == "__main__":
         kps.append([i.pt for i in kp])
         descs.append(des)
 
-    pairs = feature_match(kps, descs)
+    lengths, offsets = feature_match(kps, descs)
 
-    matching_tree = image_match(pairs)
+    matching_tree = image_match(lengths, offsets)
 
     result = linear_blend(images, matching_tree)
+
+    result = e2e_alignment(result, matching_tree, offsets)
 
     # cv2.imwrite("../result.jpg", result)
 
