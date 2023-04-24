@@ -5,6 +5,7 @@ import cv2 as cv
 import time
 import copy
 import math
+from functools import cmp_to_key
 
 
 def isExtremum(cube):
@@ -30,6 +31,33 @@ def computeHessian(cube):
     return np.array([[dyy, dxy, dys], 
                     [dxy, dxx, dxs],
                     [dys, dxs, dss]])
+
+def compare(kp1, kp2):
+    if kp1.x != kp2.x:
+        return kp1.x - kp2.x
+    elif kp1.y != kp2.y:
+        return kp1.y - kp2.y
+    elif kp1.size != kp2.size:
+        return kp2.size - kp1.size
+    elif kp1.response != kp2.response:
+        return kp2.response - kp1.response
+    elif kp1.octave != kp2.octave:
+        return kp2.octave - kp1.octave
+    return 0
+
+def equal(kp1, kp2):
+    if kp1.x == kp2.x and kp1.y == kp2.y and kp1.size == kp2.size and \
+        kp1.response == kp2.response and kp1.octave == kp2.octave:
+        return True
+    return False
+
+def unpackOctave(keypoint):
+    octave = keypoint.octave & 255
+    s = (keypoint.octave >> 8) & 255
+    if octave >= 128:
+        octave = octave | -128
+    scale = 1 / float(1 << octave) if octave >= 0 else float(1 << -octave)
+    return octave, s, scale
 
 class Keypoint:
     def __init__(self , x , y , orientation , octave , size , response):
@@ -57,19 +85,18 @@ class SIFT:
         base_img = self.generate_base_image(img)
         gaussian_kernels = self.generateGaussianKernels()
         OctaveGaussians, OctaveDoGs = self.generateGaussianAndDoG(base_img, gaussian_kernels)
-        
-        # for i, Gaussians in enumerate(OctaveGaussians):
-        #     for j, Gaussian in enumerate(Gaussians):
-        #         cv.imwrite(f"./Octave_{i}/Gaussian/Gaussian_{j}.jpg", Gaussian)
-        # for i, OctaveDoG in enumerate(OctaveDoGs):
-        #     for j, Dog in enumerate(OctaveDoG):
-        #         cv.imwrite(f"./Octave_{i}/DoG/DoG_{j}.jpg", Dog)
         keypoints = self.keypoint_localization(OctaveGaussians, OctaveDoGs)
+
+        keypoints = self.remove_redundant_keypoint(keypoints)
+        keypoints = self.keypoints_convertion(keypoints)
+
+        descriptors = self.getDescriptors(keypoints, OctaveGaussians)
 
         total_time = time.time() - start_time
         print(f"Find {len(keypoints)} keypoints in total !")
         print(f"cost {total_time:0.2f} (s)")
-        return keypoints
+        return keypoints, descriptors
+
     def generate_base_image(self, img):
         img = cv.cvtColor(img , cv.COLOR_BGR2GRAY).astype(np.float32)
         img = cv.resize(img , (0 , 0) , fx = 2 , fy = 2 , interpolation = cv.INTER_LINEAR)
@@ -167,7 +194,7 @@ class SIFT:
                     y = (y + offset[0]) * 2**octave , 
                     orientation = None , 
                     octave = octave + 256 * s + 65536 * int(np.round(255 * (offset[0] + 0.5))) , 
-                    size = self.sigma * 2**((s + offset[2]) / self.num_intervals) * 2**(octave + 1) , 
+                    size = self.sigma * 2**((s + offset[2]) / self.num_intervals) * (2**(octave + 1)) , 
                     response = abs(contrast_response)
                 )
                 return keypoint , s
@@ -224,15 +251,127 @@ class SIFT:
                 keypoints_with_orientations.append(new_keypoint)
         return keypoints_with_orientations
 
+    def remove_redundant_keypoint(self, keypoints):
+        keypoints.sort(key=cmp_to_key(compare))
+        cleaned_keypoints = [keypoints[0]]
+        for keypoint in keypoints[1:]:
+            if not equal(keypoint, cleaned_keypoints[-1]):
+                cleaned_keypoints.append(keypoint)
+        return cleaned_keypoints
+
+    def keypoints_convertion(self, keypoints):
+        converted_keypoints = []
+        for keypoint in keypoints:
+            keypoint.x /= 2
+            keypoint.y /= 2
+            keypoint.size /= 2
+            keypoint.octave = (keypoint.octave & ~255) | ((keypoint.octave - 1) & 255)
+            converted_keypoints.append(keypoint)
+        return converted_keypoints
+
+    def getDescriptors(self, keypoints, OctaveGaussians, \
+            window_size=4, num_bins=8, scale_multiplier=3, descriptor_max_value=0.2):
+
+        descriptors = []
+        weight_multiplier = -0.5 / ((0.5 * window_size) ** 2)
+        bins_per_degree = num_bins / 360.
+
+        for keypoint in keypoints:
+            octave, layer, scale = unpackOctave(keypoint)
+            Gaussian_img = OctaveGaussians[octave + 1][layer]
+            num_rows, num_cols = Gaussian_img.shape
+            x = int(np.round(scale * keypoint.x))
+            y = int(np.round(scale * keypoint.y))
+            degree = 360 - keypoint.orientation
+            cos_deg = np.cos(np.deg2rad(degree))
+            sin_deg = np.sin(np.deg2rad(degree))
+
+            bin_info_list = []
+            histogram = np.zeros((window_size + 2, window_size + 2, num_bins))
+
+            hist_width = scale_multiplier * 0.5 * scale * keypoint.size
+            radius = int(round(hist_width * np.sqrt(2) * (window_size + 1) * 0.5))
+            radius = int(min(radius, np.sqrt(num_rows ** 2 + num_cols ** 2)))
+
+            for i in range(-radius, radius + 1):
+                for j in range(-radius, radius + 1):
+                    rotat_j = j * sin_deg + i * cos_deg
+                    rotat_i = j * cos_deg - i * sin_deg
+
+                    bin_j = (rotat_j / hist_width) + 0.5 * window_size - 0.5
+                    bin_i = (rotat_i / hist_width) + 0.5 * window_size - 0.5
+
+                    if bin_j > -1 and bin_j < window_size and bin_i > -1 and bin_i < window_size:
+                        window_j = int(round(y + j))
+                        window_i = int(round(x + i))
+                        if window_j > 0 and window_j < num_rows - 1 and window_i > 0 and window_i < num_cols - 1:
+                            dx = Gaussian_img[window_j, window_i + 1] - Gaussian_img[window_j, window_i - 1]
+                            dy = Gaussian_img[window_j + 1, window_i] - Gaussian_img[window_j - 1, window_i]
+                            gradient_magnitude = np.sqrt(dx**2 + dy**2)
+                            gradient_degree = np.rad2deg(np.arctan2(dy, dx)) % 360
+                            weight = np.exp(weight_multiplier * ((rotat_i / hist_width) ** 2 + (rotat_j / hist_width) ** 2))
+                            
+                            bin_info_list.append((
+                                bin_j,
+                                bin_i,
+                                weight * gradient_magnitude,
+                                (gradient_degree - degree) * bins_per_degree
+                            ))
+            
+            for y_bin, x_bin, magnitude, deg_bin in bin_info_list:
+                #  trilinear interpolation
+
+                y_bin_f, y_bin_c = int(np.floor(y_bin)), int(np.floor(y_bin))+1
+                x_bin_f, x_bin_c = int(np.floor(x_bin)), int(np.floor(x_bin))+1
+                deg_bin_f, deg_bin_c = int(np.floor(deg_bin)) % num_bins, (int(np.floor(deg_bin))+1) % num_bins
+
+                y_ratio = y_bin - y_bin_f
+                x_ratio = x_bin - x_bin_f
+                deg_ratio = deg_bin - int(np.floor(deg_bin))
+
+                c1 = magnitude * y_ratio
+                c0 = magnitude * (1 - y_ratio)
+                c11 = c1 * x_ratio
+                c10 = c1 * (1 - x_ratio)
+                c01 = c0 * x_ratio
+                c00 = c0 * (1 - x_ratio)
+                c111 = c11 * deg_ratio
+                c110 = c11 * (1 - deg_ratio)
+                c101 = c10 * deg_ratio
+                c100 = c10 * (1 - deg_ratio)
+                c011 = c01 * deg_ratio
+                c010 = c01 * (1 - deg_ratio)
+                c001 = c00 * deg_ratio
+                c000 = c00 * (1 - deg_ratio)
+
+                histogram[y_bin_f + 1, x_bin_f + 1, deg_bin_f] += c000
+                histogram[y_bin_f + 1, x_bin_f + 1, deg_bin_c] += c001
+                histogram[y_bin_f + 1, x_bin_c + 1, deg_bin_f] += c010
+                histogram[y_bin_f + 1, x_bin_c + 1, deg_bin_c] += c011
+                histogram[y_bin_c + 1, x_bin_f + 1, deg_bin_f] += c100
+                histogram[y_bin_c + 1, x_bin_f + 1, deg_bin_c] += c101
+                histogram[y_bin_c + 1, x_bin_c + 1, deg_bin_f] += c110
+                histogram[y_bin_c + 1, x_bin_c + 1, deg_bin_c] += c111
+
+            descriptor = histogram[1 : -1 , 1 : -1 , : ].reshape(-1)
+            threshold = descriptor_max_value * np.linalg.norm(descriptor)
+            descriptor[descriptor > threshold] = threshold
+            descriptor /= max(np.linalg.norm(descriptor) , 1e-7)
+            descriptor = np.round(512 * descriptor)
+            descriptor[descriptor < 0] = 0
+            descriptor[descriptor > 255] = 255
+            descriptors.append(descriptor)
+        descriptors = np.array(descriptors)
+        return descriptors
 
 # using example
-img = cv.imread("/tmp2/b07902058/DVE_hw2/memorial0064.png")
+img = cv.imread("/tmp2/b07902058/DVE_hw2/image_stitching/code/lib/8.jpg")
 print(img.shape)
 sift = SIFT()
-keypoints = sift.fit(img)
+keypoints, descriptors = sift.fit(img)
 
 # draw keypoint
 for kp in keypoints:
-    image = cv.circle(img, (int(kp.x/2), int(kp.y/2)), radius=2, color=(0, 0, 255), thickness=2)
+    image = cv.circle(img, (int(kp.x), int(kp.y)), radius=2, color=(0, 0, 255), thickness=2)
 
 cv.imwrite("test.jpg", image)
