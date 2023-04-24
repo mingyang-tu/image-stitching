@@ -1,6 +1,5 @@
-import numpy as np
 import cv2
-from lib import feature_match, image_match, linear_blend, e2e_alignment
+from lib import image_stitching
 
 
 if __name__ == "__main__":
@@ -13,25 +12,7 @@ if __name__ == "__main__":
     for i in names:
         images.append(cv2.imread(root + i))
 
-    img_match = np.concatenate(images, axis=1)
-
-    sift = cv2.SIFT_create()
-
-    kps = []
-    descs = []
-    for img in images:
-        kp, des = sift.detectAndCompute(img, None)
-        print("Number of keypoints =", len(kp))
-        kps.append([i.pt for i in kp])
-        descs.append(des)
-
-    lengths, offsets = feature_match(kps, descs)
-
-    matching_tree = image_match(lengths, offsets)
-
-    result = linear_blend(images, matching_tree)
-
-    result = e2e_alignment(result, matching_tree, offsets)
+    result = image_stitching(images, 704.916)
 
     # cv2.imwrite("../result.jpg", result)
 
