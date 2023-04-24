@@ -1,4 +1,5 @@
 import numpy as np
+from .utils import bilinear_interpolation
 
 
 def e2e_alignment(result, matching_tree, offsets):
@@ -19,7 +20,7 @@ def e2e_alignment(result, matching_tree, offsets):
     diff_x = right[0] - left[0] + offsets[idx_r][idx_l][1]
     diff_y = right[1] - left[1] + offsets[idx_r][idx_l][0]
 
-    if 10 < abs(diff_y) < float("inf"):
+    if min(result.shape[0], result.shape[1]) / 10 < abs(diff_y) < float("inf"):
         print(f"Drift = {diff_x}")
         rotation = np.array([
             [1, -diff_x / diff_y], [0, 1]
@@ -27,21 +28,6 @@ def e2e_alignment(result, matching_tree, offsets):
         return affine_transformation(result, rotation)
     else:
         return result
-
-
-def bilinear_interpolation(img, m1, n1):
-    m0 = np.clip(np.floor(m1), 0, img.shape[0] - 2).astype(int)
-    n0 = np.clip(np.floor(n1), 0, img.shape[1] - 2).astype(int)
-
-    a = m1 - m0
-    b = n1 - n0
-
-    return (
-        (1 - a) * (1 - b) * img[m0, n0] +
-        a * (1 - b) * img[m0 + 1, n0] +
-        (1 - a) * b * img[m0, n0 + 1] +
-        a * b * img[m0 + 1, n0 + 1]
-    )
 
 
 def inv_2x2_mat(mat):

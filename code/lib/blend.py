@@ -1,7 +1,12 @@
 import numpy as np
+from .utils import bilinear_interpolation
 
 
-def linear_blend(images, matching_tree):
+def linear_blend(images, matching_tree, img_weight):
+    """
+    Todo:
+    每張圖片的大小要一樣（或是可以改一下讓他可以不一樣）
+    """
     ROW, COL, _ = images[matching_tree.index].shape
     top, bot, left, right = maximum_offests(matching_tree)
 
@@ -12,7 +17,7 @@ def linear_blend(images, matching_tree):
     queue = [(matching_tree, (top, left))]
     while queue:
         node, (xi, yi) = queue.pop(0)
-        weight = get_linear_weight(images[node.index])
+        weight = img_weight[node.index]
         weights[xi:xi+ROW, yi:yi+COL] += weight
         for i in range(3):
             result[xi:xi+ROW, yi:yi+COL, i] += weight * images[node.index][:, :, i]
@@ -26,7 +31,7 @@ def linear_blend(images, matching_tree):
     return result.astype(np.uint8)
 
 
-def get_linear_weight(img):
+def get_linear_weight(img, focal):
     ROW, COL, _ = img.shape
     c_x, c_y = (ROW - 1) // 2, (COL - 1) // 2
 
@@ -37,7 +42,37 @@ def get_linear_weight(img):
 
     w_xy = np.dot(w_x.reshape(-1, 1), w_y.reshape(1, -1))
 
-    return w_xy
+    return project_weight(w_xy, focal)
+
+
+def project_weight(weight, focal):
+    ROW, COL = weight.shape
+
+    CY_ROW = ROW
+    CY_COL = int(focal * np.arctan(COL / 2 / focal) * 2)
+
+    center = np.array([CY_ROW / 2, CY_COL / 2], dtype=np.float64).reshape(-1, 1, 1)
+    row_i, col_i = np.mgrid[0: CY_ROW, 0: CY_COL].astype(np.float64) - center
+
+    n1 = np.tan(col_i / focal) * focal
+    m1 = row_i * np.sqrt(n1**2 + focal**2) / focal
+
+    m1 += ROW / 2
+    n1 += COL / 2
+
+    m1_floor = np.floor(m1).astype(int)
+    n1_floor = np.floor(n1).astype(int)
+
+    pad_x = max(-np.min(m1_floor), 0), max(np.max(m1_floor) - ROW + 1, 0)
+    pad_y = max(-np.min(n1_floor), 0), max(np.max(n1_floor) - COL + 1, 0)
+    img_pad = np.pad(weight, (pad_x, pad_y))
+
+    img_cy = np.clip(
+        bilinear_interpolation(img_pad, m1 + pad_x[0], n1 + pad_y[0]),
+        0, 1
+    )
+
+    return img_cy
 
 
 def maximum_offests(matching_tree):
