@@ -21,7 +21,7 @@ def e2e_alignment(result, matching_tree, offsets):
     diff_y = right[1] - left[1] + offsets[idx_r][idx_l][0]
 
     if min(result.shape[0], result.shape[1]) / 10 < abs(diff_y) < float("inf"):
-        print(f"Drift = {diff_x}")
+        print(f"-- End-to-end alignment --\nDrift = {diff_x}")
         rotation = np.array([
             [1, -diff_x / diff_y], [0, 1]
         ], dtype=np.float64)

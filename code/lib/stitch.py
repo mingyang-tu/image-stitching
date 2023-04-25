@@ -1,3 +1,4 @@
+from .SIFT import SIFT
 from .feature_match.match import feature_match
 from .image_match import image_match
 from .blend import linear_blend, get_linear_weight
@@ -5,20 +6,17 @@ from .alignment import e2e_alignment
 from .wrap import cylindrical_projection
 from .utils import crop
 
-import cv2
-
 
 def image_stitching(images, focal):
     images_cy = [cylindrical_projection(img, focal) for img in images]
 
-    sift = cv2.SIFT_create()
+    sift = SIFT()
 
     kps = []
     descs = []
     for img in images_cy:
-        kp, des = sift.detectAndCompute(img, None)
-        print("Number of keypoints =", len(kp))
-        kps.append([i.pt for i in kp])
+        kp, des = sift.fit(img)
+        kps.append([(i.x, i.y) for i in kp])
         descs.append(des)
 
     lengths, offsets = feature_match(kps, descs)

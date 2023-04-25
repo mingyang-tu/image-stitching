@@ -79,7 +79,7 @@ class SIFT:
         self.border=border
 
     def fit(self , img):
-        print("--start fiting--")
+        print("-- Start SIFT --")
         start_time = time.time()
 
         base_img = self.generate_base_image(img)
@@ -94,7 +94,7 @@ class SIFT:
 
         total_time = time.time() - start_time
         print(f"Find {len(keypoints)} keypoints in total !")
-        print(f"cost {total_time:0.2f} (s)")
+        print(f"Cost {total_time:0.2f} (s)")
         return keypoints, descriptors
 
     def generate_base_image(self, img):
@@ -154,7 +154,7 @@ class SIFT:
                                         keypoints.append(keypoint_with_orientation)
                                     keypoints.append(keypoint)
 
-                                    print(f"Find {len(keypoints)} keypoints({count})...", end="\r")
+                                    print(f"Find {len(keypoints)} keypoints ({count})...", end="\r")
         
         return keypoints
 
@@ -365,13 +365,13 @@ class SIFT:
         return descriptors
 
 # using example
-img = cv.imread("/tmp2/b07902058/DVE_hw2/image_stitching/code/lib/8.jpg")
-print(img.shape)
-sift = SIFT()
-keypoints, descriptors = sift.fit(img)
+# img = cv.imread("/tmp2/b07902058/DVE_hw2/image_stitching/code/lib/8.jpg")
+# print(img.shape)
+# sift = SIFT()
+# keypoints, descriptors = sift.fit(img)
 
-# draw keypoint
-for kp in keypoints:
-    image = cv.circle(img, (int(kp.x), int(kp.y)), radius=2, color=(0, 0, 255), thickness=2)
+# # draw keypoint
+# for kp in keypoints:
+#     image = cv.circle(img, (int(kp.x), int(kp.y)), radius=2, color=(0, 0, 255), thickness=2)
 
-cv.imwrite("test.jpg", image)
+# cv.imwrite("test.jpg", image)

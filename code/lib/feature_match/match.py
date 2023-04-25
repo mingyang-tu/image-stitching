@@ -1,5 +1,6 @@
 from .BBF import KDTree
 import numpy as np
+import time
 
 
 def feature_match(keypoints, descriptions, threshold=10):
@@ -7,24 +8,28 @@ def feature_match(keypoints, descriptions, threshold=10):
     lengths = [[0 for j in range(N)] for i in range(N)]
     offsets = [[(float("inf"), float("inf")) for j in range(N)] for i in range(N)]
 
+    print("-- Start Matching --")
+    start = time.time()
     for i in range(N):
         kp1, des1 = keypoints[i], descriptions[i]
         tree1 = KDTree()
         tree1.build_tree(des1)
 
         for j in range(i+1, N):
-            print(f"Matching Image {i} -> {j}")
+            print(f"Matching image {i} -> {j}", end="\r")
             kp2, des2 = keypoints[j], descriptions[j]
             pair = _feature_match(kp1, kp2, tree1, des2)
             if len(pair) >= threshold:
                 lengths[i][j] = lengths[j][i] = len(pair)
                 offsets[i][j] = ransac(pair)
                 offsets[j][i] = (-offsets[i][j][0], -offsets[i][j][1])
+    end = time.time()
+    print(f"Cost {end-start:.2f} (s)")
 
     return lengths, offsets
 
 
-def _feature_match(kp1, kp2, tree1, des2, ratio=0.5):
+def _feature_match(kp1, kp2, tree1, des2, ratio=0.6):
     pair = []
     for i in range(len(kp2)):
         m2, m1 = tree1.knn(des2[i, :], 2, 100)

@@ -2,7 +2,7 @@
 def image_match(lengths, offsets):
     matching_tree = prim_mst(lengths, offsets)
 
-    print("\nRelationship between images:")
+    print("-- Relationship between images --")
     print(matching_tree)
 
     return matching_tree
