@@ -3,7 +3,7 @@ from lib import image_stitching
 
 
 if __name__ == "__main__":
-    root = "../image/"
+    root = "../data/"
     names = [
         f"img{i}.JPG" for i in range(9)
     ]
