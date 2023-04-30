@@ -5,7 +5,7 @@ Python implementation of
 - Feature detection: SIFT
 - Feature matching: KNN using k-d tree
 - Image matching: RANSAC
-- Linear blending
+- Multi-band blending
 - End-to-end alignment and crop
 
 ## Requirements
