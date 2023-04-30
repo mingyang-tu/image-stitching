@@ -1,10 +1,10 @@
 from .SIFT import SIFT
 from .feature_match.match import feature_match
 from .image_match import image_match
-from .blend import linear_blend, get_linear_weight
+from .blend import multi_band_blend
 from .alignment import e2e_alignment
 from .wrap import cylindrical_projection
-from .utils import crop
+from .utils import crop, get_linear_weight
 
 
 def image_stitching(images, focal):
@@ -27,7 +27,7 @@ def image_stitching(images, focal):
         get_linear_weight(img, focal) for img in images
     ]
 
-    result = linear_blend(images_cy, matching_tree, img_weight)
+    result = multi_band_blend(images_cy, matching_tree, img_weight)
 
     result = e2e_alignment(result, matching_tree, offsets)
 

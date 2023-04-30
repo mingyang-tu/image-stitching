@@ -1,14 +1,52 @@
 import numpy as np
-from .utils import bilinear_interpolation
+import cv2
+
+"""
+    每張圖片的大小要一樣（或是可以改一下讓他可以不一樣）
+"""
 
 
 def linear_blend(images, matching_tree, img_weight):
-    """
-    Todo:
-    每張圖片的大小要一樣（或是可以改一下讓他可以不一樣）
-    """
     ROW, COL, _ = images[matching_tree.index].shape
     top, bot, left, right = maximum_offests(matching_tree)
+
+    result = _linear_blend(images, matching_tree, img_weight, (ROW, COL), (top, bot, left, right))
+
+    return result.astype(np.uint8)
+
+
+def multi_band_blend(images, matching_tree, img_weight, band=5, sigma=5):
+    ROW, COL, _ = images[matching_tree.index].shape
+    top, bot, left, right = maximum_offests(matching_tree)
+
+    w_max = get_max_weight(matching_tree, img_weight, (ROW, COL), (top, bot, left, right))
+
+    masks = [(w > 0).astype(np.float64) for w in img_weight]
+
+    result = np.zeros((ROW + top + bot, COL + left + right, 3), dtype=np.float64)
+
+    last_I = [img.astype(np.float64) for img in images]
+    curr_I = [img.copy() for img in last_I]
+    last_W = [gaussian_blur_with_mask(w, masks[i], sigma) for i, w in enumerate(w_max)]
+    curr_W = [w.copy() for w in last_W]
+    for j in range(1, band):
+        curr_B = []
+        for i in range(len(img_weight)):
+            curr_I[i] = gaussian_blur_with_mask(last_I[i], masks[i], sigma * (2 * j + 1) ** (1/2))
+            curr_W[i] = gaussian_blur_with_mask(last_W[i], masks[i], sigma * (2 * j + 1) ** (1/2))
+            curr_B.append(last_I[i] - curr_I[i])
+        result += _linear_blend(curr_B, matching_tree, last_W, (ROW, COL), (top, bot, left, right))
+        last_I, curr_I = curr_I, last_I
+        last_W, curr_W = curr_W, last_W
+
+    result += _linear_blend(last_I, matching_tree, last_W, (ROW, COL), (top, bot, left, right))
+
+    return np.clip(result, 0, 255).astype(np.uint8)
+
+
+def _linear_blend(images, matching_tree, img_weight, imsize, offsets):
+    ROW, COL = imsize
+    top, bot, left, right = offsets
 
     ROW_r, COL_r = ROW + top + bot, COL + left + right
     result = np.zeros((ROW_r, COL_r, 3), dtype=np.float64)
@@ -28,51 +66,63 @@ def linear_blend(images, matching_tree, img_weight):
     for i in range(3):
         result[:, :, i] /= weights
 
-    return result.astype(np.uint8)
+    return result
 
 
-def get_linear_weight(img, focal):
-    ROW, COL, _ = img.shape
-    c_x, c_y = (ROW - 1) // 2, (COL - 1) // 2
+def gaussian_blur_with_mask(image, mask, sigma):
+    blurred_image = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma, sigmaY=sigma)
+    blurred_mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=sigma, sigmaY=sigma)
 
-    w_x = np.concatenate([np.arange(0, c_x+1), np.arange(ROW-c_x-2, -1, -1)])
-    w_x = w_x / np.max(w_x)
-    w_y = np.concatenate([np.arange(0, c_y+1), np.arange(COL-c_y-2, -1, -1)])
-    w_y = w_y / np.max(w_y)
+    blurred_mask[blurred_mask == 0] = 1
+    if len(image.shape) == 2:
+        return blurred_image / blurred_mask * mask
+    else:
+        result = np.zeros(image.shape, dtype=np.float64)
+        for i in range(3):
+            result[:, :, i] = blurred_image[:, :, i] / blurred_mask * mask
+        return result
 
-    w_xy = np.dot(w_x.reshape(-1, 1), w_y.reshape(1, -1))
 
-    return project_weight(w_xy, focal)
+def get_max_weight(matching_tree, img_weight, imsize, offsets):
+    ROW, COL = imsize
+    top, bot, left, right = offsets
+    ROW_r, COL_r = ROW + top + bot, COL + left + right
 
+    w_idx = -np.ones((ROW_r, COL_r), dtype=np.int64)
+    curr_max = np.zeros((ROW_r, COL_r), dtype=np.float64)
 
-def project_weight(weight, focal):
-    ROW, COL = weight.shape
+    def substitute_matrix(target, change_idx, change_val):
+        target[change_idx] = change_val
+        return target
 
-    CY_ROW = ROW
-    CY_COL = int(focal * np.arctan(COL / 2 / focal) * 2)
+    queue = [(matching_tree, (top, left))]
+    while queue:
+        node, (xi, yi) = queue.pop(0)
+        weight = img_weight[node.index]
+        changes = curr_max[xi:xi+ROW, yi:yi+COL] < weight
 
-    center = np.array([CY_ROW / 2, CY_COL / 2], dtype=np.float64).reshape(-1, 1, 1)
-    row_i, col_i = np.mgrid[0: CY_ROW, 0: CY_COL].astype(np.float64) - center
+        w_idx[xi:xi+ROW, yi:yi+COL] = substitute_matrix(
+            w_idx[xi:xi+ROW, yi:yi+COL],
+            changes, node.index
+        )
 
-    n1 = np.tan(col_i / focal) * focal
-    m1 = row_i * np.sqrt(n1**2 + focal**2) / focal
+        curr_max[xi:xi+ROW, yi:yi+COL] = substitute_matrix(
+            curr_max[xi:xi+ROW, yi:yi+COL],
+            changes, weight[changes]
+        )
+        for child, (dy, dx) in node.children.items():
+            queue.append((child, (xi+dx, yi+dy)))
 
-    m1 += ROW / 2
-    n1 += COL / 2
+    w_max = [np.zeros((ROW, COL), dtype=np.float64) for _ in range(np.max(w_idx)+1)]
 
-    m1_floor = np.floor(m1).astype(int)
-    n1_floor = np.floor(n1).astype(int)
+    queue = [(matching_tree, (top, left))]
+    while queue:
+        node, (xi, yi) = queue.pop(0)
+        w_max[node.index] = (w_idx[xi:xi+ROW, yi:yi+COL] == node.index).astype(np.float64)
+        for child, (dy, dx) in node.children.items():
+            queue.append((child, (xi+dx, yi+dy)))
 
-    pad_x = max(-np.min(m1_floor), 0), max(np.max(m1_floor) - ROW + 1, 0)
-    pad_y = max(-np.min(n1_floor), 0), max(np.max(n1_floor) - COL + 1, 0)
-    img_pad = np.pad(weight, (pad_x, pad_y))
-
-    img_cy = np.clip(
-        bilinear_interpolation(img_pad, m1 + pad_x[0], n1 + pad_y[0]),
-        0, 1
-    )
-
-    return img_cy
+    return w_max
 
 
 def maximum_offests(matching_tree):
