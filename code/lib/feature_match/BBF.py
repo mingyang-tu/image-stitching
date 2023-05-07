@@ -129,7 +129,7 @@ class KDTree:
         while max_search > 0 and len(priority_q) > 0:
             curr = heapq.heappop(priority_q)
             neighbor.push(curr)
-            if neighbor.peek() > self._hyper_plane_dist(target, curr):
+            if curr.parent and neighbor.peek() > self._hyper_plane_dist(target, curr.parent):
                 if curr.brother is not None:
                     priority_q = self._trace(target, curr.brother, priority_q, seen)
             max_search -= len(priority_q) - last_found + 1
